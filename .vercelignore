@@ -1,0 +1,15 @@
+.git/
+node_modules/
+.next/
+out/
+coverage/
+data/raw/
+data/cache/
+data/processed/
+exports/
+*.parquet
+*.feather
+*.pickle
+*.pkl
+*.sqlite
+*.db

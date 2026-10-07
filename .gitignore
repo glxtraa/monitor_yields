@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+/.pnp/
+.pnp.*
+
+# Next.js and Vercel build output
+.next/
+out/
+.vercel/
+dist/
+build/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and local runtime output
+*.log
+logs/
+tmp/
+temp/
+
+# Python/Jupyter runtime files (the source notebook is intentionally kept)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+*.tsbuildinfo
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Local data dumps and generated exports
+data/raw/
+data/cache/
+data/processed/
+exports/
+*.parquet
+*.feather
+*.pickle
+*.pkl
+*.sqlite
+*.db
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
