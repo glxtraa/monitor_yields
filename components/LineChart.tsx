@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type ChartSeries = {
   key: string;
   label: string;
@@ -30,6 +32,7 @@ export default function LineChart({
   unit,
   decimals = 2,
 }: LineChartProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const width = 960;
   const height = 300;
   const padding = { top: 24, right: 24, bottom: 42, left: 62 };
@@ -69,6 +72,27 @@ export default function LineChart({
 
   const tickValues = [max, min + (max - min) / 2, min];
   const dateIndexes = [0, Math.floor((dates.length - 1) / 2), dates.length - 1];
+  const tooltipWidth = 214;
+  const tooltipHeight = 34 + series.length * 19;
+  const activeX = activeIndex === null ? null : x(activeIndex);
+  const tooltipX =
+    activeX === null
+      ? 0
+      : Math.min(
+          Math.max(activeX + 14, padding.left),
+          width - padding.right - tooltipWidth,
+        );
+  const tooltipY = padding.top + 10;
+
+  const handlePointerMove = (event: React.PointerEvent<SVGRectElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const svgX = ((event.clientX - bounds.left) / bounds.width) * width;
+    const relativeX = Math.min(Math.max(svgX - padding.left, 0), plotWidth);
+    const index = Math.round(
+      (relativeX / plotWidth) * Math.max(rows.length - 1, 1),
+    );
+    setActiveIndex(index);
+  };
 
   return (
     <section className="chart-card" aria-label={title}>
@@ -105,11 +129,71 @@ export default function LineChart({
             strokeLinejoin="round"
           />
         ))}
+        {activeIndex !== null && activeX !== null && (
+          <g pointerEvents="none">
+            <line
+              x1={activeX}
+              x2={activeX}
+              y1={padding.top}
+              y2={height - padding.bottom}
+              className="hover-line"
+            />
+            {series.map((item) => {
+              const value = Number(rows[activeIndex]?.[item.key]);
+              return Number.isFinite(value) ? (
+                <circle
+                  key={`active-${item.key}`}
+                  cx={activeX}
+                  cy={y(value)}
+                  r="4.5"
+                  fill={item.color}
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                />
+              ) : null;
+            })}
+            <g transform={`translate(${tooltipX}, ${tooltipY})`}>
+              <rect
+                width={tooltipWidth}
+                height={tooltipHeight}
+                rx="8"
+                className="chart-tooltip-box"
+              />
+              <text x="12" y="20" className="chart-tooltip-date">
+                {dates[activeIndex]}
+              </text>
+              {series.map((item, index) => {
+                const value = Number(rows[activeIndex]?.[item.key]);
+                return (
+                  <text
+                    key={`tooltip-${item.key}`}
+                    x="12"
+                    y={39 + index * 19}
+                    className="chart-tooltip-value"
+                  >
+                    {item.label}: {Number.isFinite(value) ? formatValue(value, decimals, unit) : "—"}
+                  </text>
+                );
+              })}
+            </g>
+          </g>
+        )}
         {dateIndexes.map((index) => (
           <text key={`date-${index}`} x={x(index)} y={height - 12} textAnchor="middle" className="axis-label">
             {dates[index]}
           </text>
         ))}
+        <rect
+          x={padding.left}
+          y={padding.top}
+          width={plotWidth}
+          height={plotHeight}
+          fill="transparent"
+          className="chart-hover-target"
+          onPointerMove={handlePointerMove}
+          onPointerLeave={() => setActiveIndex(null)}
+          aria-label={`Hover over ${title} to inspect individual values`}
+        />
       </svg>
       <div className="chart-legend">
         {series.map((item) => {

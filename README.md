@@ -7,6 +7,7 @@ France–Germany yield monitor and simplified probability-of-default dashboard.
 - A Next.js/Vercel dashboard for French OAT and German Bund yields at 2Y, 5Y, and 10Y.
 - Server-side data fetching from Banque de France and Deutsche Bundesbank.
 - OAT–Bund spread calculations and flat-hazard spread-implied PD estimates.
+- Hoverable charts with date-specific values for every plotted series.
 - Recovery-rate sensitivity and public 5Y CDS comparison when the Boursorama pages are available.
 - The original research notebook and handoff notes in `source/`.
 
