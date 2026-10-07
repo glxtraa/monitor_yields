@@ -18,6 +18,11 @@ const COLORS = {
   cdsDifference: "#7f56d9",
 };
 
+const NOTEBOOK_URL =
+  "https://github.com/glxtraa/monitor_yields/blob/main/source/france_germany_spread_default_probability_timeseries.ipynb";
+const HANDOFF_URL =
+  "https://github.com/glxtraa/monitor_yields/blob/main/source/HANDOFF.md";
+
 function number(value: number | null | undefined, digits = 2) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return value.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -69,6 +74,10 @@ export default function Home() {
           <p className="lede">
             Compare French OAT and German Bund yields, spreads, and simplified
             spread-implied default probabilities using matched daily observations.
+          </p>
+          <p className="reference-links">
+            <a href={NOTEBOOK_URL} target="_blank" rel="noreferrer">Open the underlying notebook and math ↗</a>
+            <a href={HANDOFF_URL} target="_blank" rel="noreferrer">Read the research handoff ↗</a>
           </p>
         </div>
         <div className="status-badge">{loading ? "Updating…" : data ? "Live data" : "Waiting"}</div>
@@ -127,6 +136,7 @@ export default function Home() {
           <section className="chart-grid">
             <LineChart
               title="Daily yields"
+              description="Yield is the annualized market return demanded for holding government debt. Compare France and Germany at the same maturity; the lines are percentages, not basis points."
               dates={dates}
               rows={rows}
               unit="%"
@@ -138,6 +148,7 @@ export default function Home() {
             />
             <LineChart
               title="OAT–Bund spreads"
+              description="Spread = French yield minus German yield. A positive number means France yields more than Germany; 100 basis points equals one percentage point."
               dates={dates}
               rows={rows}
               unit="bps"
@@ -150,6 +161,7 @@ export default function Home() {
             />
             <LineChart
               title={`Cumulative spread-implied PD (${number(recovery, 0)}% recovery)`}
+              description="Model-implied probability of at least one default by each horizon, calculated from the spread with a flat hazard rate and the selected recovery assumption."
               dates={dates}
               rows={rows}
               unit="%"
@@ -162,6 +174,7 @@ export default function Home() {
             />
             <LineChart
               title="Interval PDs"
+              description="Conditional PD is the chance of default during an interval given survival to its start. Unconditional contribution is that interval’s contribution to total PD from today."
               dates={dates}
               rows={rows}
               unit="%"
@@ -176,7 +189,7 @@ export default function Home() {
           </section>
 
           <section>
-            <div className="section-heading"><p className="eyebrow">Model sensitivity</p><h2>Recovery-rate sensitivity at the latest date</h2></div>
+            <div className="section-heading"><p className="eyebrow">Model sensitivity</p><h2>Recovery-rate sensitivity at the latest date</h2><p className="section-note">Lower assumed recovery means a larger loss-given-default, so the same observed spread produces a higher model-implied PD. This table shows how much the latest estimate depends on that assumption.</p></div>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Recovery</th><th>2Y cumulative PD</th><th>5Y cumulative PD</th><th>10Y cumulative PD</th></tr></thead>
@@ -190,6 +203,7 @@ export default function Home() {
               <div className="section-heading"><p className="eyebrow">Separate credit market measure</p><h2>5Y sovereign CDS</h2><p className="section-note">{data.cds.source}; quote currency: {data.cds.quoteCurrency}. CDS is not interchangeable with the OAT–Bund spread proxy.</p></div>
               <LineChart
                 title="Public 5Y CDS observations"
+                description="A CDS spread is the annual premium for protection against a defined sovereign credit event. Higher bps means more expensive protection; these public quotes are separate from the bond-spread proxy."
                 dates={data.cds.rows.map((row) => row.date)}
                 rows={data.cds.rows.map((row) => ({
                   date: row.date,

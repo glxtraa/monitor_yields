@@ -33,6 +33,9 @@ h1 { max-width: 760px; margin: 0; color: #101828; font-family: Georgia, "Times N
 h2 { margin: 0; color: #101828; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.7rem, 3vw, 2.3rem); letter-spacing: -0.04em; }
 h3 { margin: 0; font-size: 1rem; }
 .lede { max-width: 680px; margin: 18px 0 0; color: var(--muted); font-size: 1.06rem; line-height: 1.65; }
+.reference-links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 16px 0 0; font-size: 0.86rem; font-weight: 700; }
+.reference-links a { color: var(--accent); text-decoration: none; }
+.reference-links a:hover { text-decoration: underline; }
 .status-badge { flex: 0 0 auto; padding: 8px 12px; border: 1px solid #b9d0f7; border-radius: 999px; color: #1849a9; background: var(--accent-soft); font-size: 0.8rem; font-weight: 750; }
 
 .control-panel { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: 0 8px 30px rgba(16, 24, 40, 0.04); }
@@ -68,6 +71,7 @@ section { margin-top: 48px; }
 .chart-card { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
 .chart-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .chart-range { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+.chart-description { min-height: 42px; margin: 9px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.45; }
 .line-chart { display: block; width: 100%; height: auto; margin-top: 12px; overflow: visible; }
 .grid-line { stroke: #e9edf3; stroke-width: 1; }
 .axis-label { fill: #8b95a5; font-size: 11px; }

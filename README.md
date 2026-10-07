@@ -11,6 +11,8 @@ France–Germany yield monitor and simplified probability-of-default dashboard.
 - Recovery-rate sensitivity and public 5Y CDS comparison when the Boursorama pages are available.
 - The original research notebook and handoff notes in `source/`.
 
+The live dashboard links to the [underlying notebook](source/france_germany_spread_default_probability_timeseries.ipynb), which contains the detailed formulas, assumptions, source definitions, and caveats.
+
 ## Run locally
 
 ```bash

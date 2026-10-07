@@ -10,6 +10,7 @@ type ChartSeries = {
 
 type LineChartProps = {
   title: string;
+  description?: string;
   dates: string[];
   rows: Array<Record<string, string | number | null>>;
   series: ChartSeries[];
@@ -26,6 +27,7 @@ function formatValue(value: number, decimals: number, unit: string) {
 
 export default function LineChart({
   title,
+  description,
   dates,
   rows,
   series,
@@ -102,6 +104,7 @@ export default function LineChart({
           {dates[0]} → {dates.at(-1)}
         </span>
       </div>
+      {description && <p className="chart-description">{description}</p>}
       <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} role="img">
         <title>{title}</title>
         {tickValues.map((value, index) => (
