@@ -9,6 +9,7 @@ France–Germany yield monitor and simplified probability-of-default dashboard.
 - OAT–Bund spread calculations and flat-hazard spread-implied PD estimates.
 - Hoverable charts with date-specific values for every plotted series.
 - Recovery-rate sensitivity and public 5Y CDS comparison when the Boursorama pages are available.
+- A separate daily plot of Polymarket-implied winner probabilities for Marine Le Pen and Jean-Luc Mélenchon in the 2027 French presidential election.
 - The original research notebook and handoff notes in `source/`.
 
 The live dashboard links to the [underlying notebook](source/france_germany_spread_default_probability_timeseries.ipynb), which contains the detailed formulas, assumptions, source definitions, and caveats.
@@ -34,8 +35,10 @@ WEBSTAT_API_KEY=your_key_here npm run dev
 
 Import this repository into Vercel with the project root set to the repository root. Vercel will detect the Next.js app automatically. Add `WEBSTAT_API_KEY` only if the public Banque de France export is unavailable.
 
-The first version fetches current data on demand and uses a short CDN cache. It does not persist a local database. The CDS panel is a separately sourced comparison and may be unavailable for older years because the public chart history is limited.
+The first version fetches current data on demand and uses a short CDN cache. It does not persist a local database. The CDS panel is a separately sourced comparison and may be unavailable for older years because the public chart history is limited. The election panel uses public Polymarket Gamma/CLOB market data and remains hidden when those APIs are unavailable.
 
 ## Research caveat
 
 The OAT–Bund spread is a market-implied credit-risk proxy, not a literal forecast of physical sovereign default. The PD calculation is a simplified constant-hazard approximation and should be used for relative monitoring only.
+
+Election prices are market-implied probabilities for the named winner contracts, not polling shares, calibrated forecasts, or probabilities of reaching the runoff.

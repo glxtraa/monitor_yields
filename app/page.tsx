@@ -16,6 +16,8 @@ const COLORS = {
   cdsFrance: "#b42318",
   cdsGermany: "#175cd3",
   cdsDifference: "#7f56d9",
+  lePen: "#b42318",
+  melenchon: "#175cd3",
 };
 
 const NOTEBOOK_URL =
@@ -222,10 +224,39 @@ export default function Home() {
             </section>
           )}
 
+          {data.election.available && (
+            <section>
+              <div className="section-heading">
+                <p className="eyebrow">Political market monitor</p>
+                <h2>2027 French presidential election</h2>
+                <p className="section-note">
+                  Polymarket YES prices are market-implied probabilities for each candidate winning the election. They are not poll shares, and they are not a calibrated forecast or a probability of entering the runoff.
+                </p>
+              </div>
+              <LineChart
+                title="Winner-contract probabilities"
+                description="Daily Polymarket prices for the Marine Le Pen and Jean-Luc Mélenchon winner contracts. Market prices can move with liquidity, eligibility, and new information."
+                dates={data.election.rows.map((row) => row.date)}
+                rows={data.election.rows}
+                unit="%"
+                decimals={1}
+                series={[
+                  { key: "lePenWinProbabilityPct", label: "Marine Le Pen", color: COLORS.lePen },
+                  { key: "melenchonWinProbabilityPct", label: "Jean-Luc Mélenchon", color: COLORS.melenchon },
+                ]}
+              />
+              <p className="source-list">
+                <strong>Source</strong>
+                <a href={data.election.eventUrl} target="_blank" rel="noreferrer">Polymarket event and market rules ↗</a>
+              </p>
+            </section>
+          )}
+
           <section className="notes-section">
             <div className="section-heading"><p className="eyebrow">Interpretation</p><h2>Read the estimates carefully</h2></div>
             <p>The OAT–Bund spread is a market-implied credit-risk proxy, not a literal forecast of France&apos;s physical default probability. Liquidity, inflation, fiscal expectations, politics, Germany&apos;s safe-haven status, and other premia are embedded in the spread.</p>
             <p>The PD curves use a flat-hazard approximation: hazard = spread / LGD and cumulative PD = 1 − exp(−spread × tenor / LGD). They are intended for relative monitoring, not as standalone actuarial estimates.</p>
+            <p>The election series is a separate prediction-market measure. It should not be read as a poll, a physical probability estimate, or a measure of sovereign credit risk.</p>
             <div className="source-list"><strong>Sources</strong>{data.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.url}>{source.name}</a>)}</div>
           </section>
         </>

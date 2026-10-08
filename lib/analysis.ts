@@ -1,5 +1,6 @@
 import {
   downloadBoursoramaCds,
+  downloadFrenchElectionProbabilities,
   downloadFranceSeries,
   downloadGermanySeries,
   MATURITIES,
@@ -225,6 +226,18 @@ export async function buildAnalysis(options: AnalysisOptions): Promise<AnalysisR
     );
   }
 
+  let electionRows: AnalysisResponse["election"]["rows"] = [];
+  try {
+    electionRows = await downloadFrenchElectionProbabilities(startDate, options.endDate);
+    if (electionRows.length === 0) {
+      warnings.push("French election probability data returned no observations for the selected window.");
+    }
+  } catch (error) {
+    warnings.push(
+      `French election probability data is unavailable for this request: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
   return {
     meta: {
       year: options.year,
@@ -245,6 +258,13 @@ export async function buildAnalysis(options: AnalysisOptions): Promise<AnalysisR
       rows: cdsRows,
       source: "Boursorama public 5Y sovereign CDS pages",
       quoteCurrency: "Not stated on Boursorama page",
+    },
+    election: {
+      available: electionRows.length > 0,
+      matchedObservationCount: electionRows.length,
+      rows: electionRows,
+      source: "Polymarket winner-contract prices",
+      eventUrl: "https://polymarket.com/event/next-french-presidential-election",
     },
     sources: SOURCE_LINKS.map((source) => ({ ...source, status: "Referenced" })),
     warnings,

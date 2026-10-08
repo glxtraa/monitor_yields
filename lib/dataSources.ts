@@ -20,6 +20,11 @@ const BDF_CSV_BASE_URL =
   "https://webstat.banque-france.fr/export/csv/fr/catalog/FM";
 const BUNDESBANK_API_URL =
   "https://api.statistiken.bundesbank.de/rest/data/BBSIS";
+const POLYMARKET_GAMMA_API_URL = "https://gamma-api.polymarket.com";
+const POLYMARKET_CLOB_API_URL = "https://clob.polymarket.com";
+const FRENCH_ELECTION_EVENT_SLUG = "next-french-presidential-election";
+export const FRENCH_ELECTION_EVENT_URL =
+  `https://polymarket.com/event/${FRENCH_ELECTION_EVENT_SLUG}`;
 
 const CDS_SOURCES = {
   France: {
@@ -35,6 +40,12 @@ const CDS_SOURCES = {
 } as const;
 
 export type Observation = { date: string; value: number };
+
+export type ElectionProbabilityRow = {
+  date: string;
+  lePenWinProbabilityPct: number | null;
+  melenchonWinProbabilityPct: number | null;
+};
 
 function parseDelimited(text: string, delimiter: "," | ";"): string[][] {
   const rows: string[][] = [];
@@ -143,6 +154,125 @@ async function fetchText(url: string, init?: RequestInit): Promise<string> {
   });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.text();
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(45_000),
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return response.json();
+}
+
+function parseStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+  if (typeof value !== "string") return [];
+  try {
+    return parseStringArray(JSON.parse(value));
+  } catch {
+    return [];
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function marketSearchText(market: Record<string, unknown>): string {
+  return [market.question, market.slug, market.title, market.groupItemTitle]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+}
+
+function electionTokenId(
+  market: Record<string, unknown>,
+  candidate: "le-pen" | "melenchon",
+): string {
+  const searchText = marketSearchText(market);
+  const candidateMatches = candidate === "le-pen"
+    ? searchText.includes("marine le pen")
+    : searchText.includes("mélenchon") || searchText.includes("melenchon");
+  if (!candidateMatches || !searchText.includes("win")) {
+    throw new Error(`Polymarket market for ${candidate} was not identified.`);
+  }
+
+  const tokenIds = parseStringArray(market.clobTokenIds ?? market.clob_token_ids);
+  const outcomes = parseStringArray(market.outcomes);
+  const yesIndex = outcomes.findIndex((outcome) => outcome.trim().toLowerCase() === "yes");
+  const tokenId = tokenIds[yesIndex >= 0 ? yesIndex : 0];
+  if (!tokenId) throw new Error(`Polymarket YES token for ${candidate} was not found.`);
+  return tokenId;
+}
+
+async function downloadPolymarketTokenHistory(
+  tokenId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Map<string, number>> {
+  const params = new URLSearchParams({
+    market: tokenId,
+    interval: "max",
+    fidelity: "1440",
+  });
+  const payload = asRecord(
+    await fetchJson(`${POLYMARKET_CLOB_API_URL}/prices-history?${params.toString()}`),
+  );
+  const history = Array.isArray(payload?.history) ? payload.history : [];
+  const values = new Map<string, number>();
+  for (const point of history) {
+    const record = asRecord(point);
+    const timestamp = parseNumber(record?.t);
+    const probability = parseNumber(record?.p);
+    if (timestamp === null || probability === null) continue;
+    const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+    if (date < startDate || date > endDate) continue;
+    values.set(date, probability * 100);
+  }
+  return values;
+}
+
+export async function downloadFrenchElectionProbabilities(
+  startDate: string,
+  endDate: string,
+): Promise<ElectionProbabilityRow[]> {
+  const payload = await fetchJson(
+    `${POLYMARKET_GAMMA_API_URL}/events?slug=${encodeURIComponent(FRENCH_ELECTION_EVENT_SLUG)}`,
+  );
+  const event = Array.isArray(payload) ? asRecord(payload[0]) : asRecord(payload);
+  const markets = Array.isArray(event?.markets)
+    ? event.markets.map(asRecord).filter((market): market is Record<string, unknown> => market !== null)
+    : [];
+  if (markets.length === 0) throw new Error("Polymarket French election event has no markets.");
+
+  const lePenMarket = markets.find((market) => {
+    const text = marketSearchText(market);
+    return text.includes("marine le pen") && text.includes("win");
+  });
+  const melenchonMarket = markets.find((market) => {
+    const text = marketSearchText(market);
+    return (text.includes("mélenchon") || text.includes("melenchon")) && text.includes("win");
+  });
+  if (!lePenMarket || !melenchonMarket) {
+    throw new Error("Polymarket French election candidate markets were not identified.");
+  }
+
+  const [lePenHistory, melenchonHistory] = await Promise.all([
+    downloadPolymarketTokenHistory(electionTokenId(lePenMarket, "le-pen"), startDate, endDate),
+    downloadPolymarketTokenHistory(electionTokenId(melenchonMarket, "melenchon"), startDate, endDate),
+  ]);
+  const dates = new Set([...lePenHistory.keys(), ...melenchonHistory.keys()]);
+  return [...dates].sort().map((date) => ({
+    date,
+    lePenWinProbabilityPct: lePenHistory.get(date) ?? null,
+    melenchonWinProbabilityPct: melenchonHistory.get(date) ?? null,
+  }));
 }
 
 export async function downloadFranceSeries(
@@ -344,5 +474,9 @@ export const SOURCE_LINKS = [
   {
     name: "Boursorama Germany CDS",
     url: CDS_SOURCES.Germany.url,
+  },
+  {
+    name: "Polymarket 2027 French presidential election",
+    url: FRENCH_ELECTION_EVENT_URL,
   },
 ];

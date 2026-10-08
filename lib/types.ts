@@ -22,6 +22,12 @@ export type CdsRow = {
   cdsGermany5yPdPct: number | null;
 };
 
+export type ElectionProbabilityRow = {
+  date: string;
+  lePenWinProbabilityPct: number | null;
+  melenchonWinProbabilityPct: number | null;
+};
+
 export type AnalysisResponse = {
   meta: {
     year: number;
@@ -47,6 +53,13 @@ export type AnalysisResponse = {
     rows: CdsRow[];
     source: string;
     quoteCurrency: string;
+  };
+  election: {
+    available: boolean;
+    matchedObservationCount: number;
+    rows: ElectionProbabilityRow[];
+    source: string;
+    eventUrl: string;
   };
   sources: Array<{ name: string; url: string; status: string }>;
   warnings: string[];
