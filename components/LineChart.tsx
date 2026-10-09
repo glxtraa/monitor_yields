@@ -61,16 +61,19 @@ export default function LineChart({
     padding.left + (index / Math.max(rows.length - 1, 1)) * plotWidth;
   const y = (value: number) =>
     padding.top + ((max - value) / (max - min)) * plotHeight;
-  const pathFor = (key: string) =>
-    rows
+  const pathFor = (key: string) => {
+    let started = false;
+    return rows
       .map((row, index) => {
         const value = Number(row[key]);
-        return Number.isFinite(value)
-          ? `${index === 0 ? "M" : "L"}${x(index).toFixed(2)},${y(value).toFixed(2)}`
-          : "";
+        if (!Number.isFinite(value)) return "";
+        const command = started ? "L" : "M";
+        started = true;
+        return `${command}${x(index).toFixed(2)},${y(value).toFixed(2)}`;
       })
       .filter(Boolean)
       .join(" ");
+  };
 
   const tickValues = [max, min + (max - min) / 2, min];
   const dateIndexes = [0, Math.floor((dates.length - 1) / 2), dates.length - 1];

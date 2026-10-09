@@ -193,50 +193,56 @@ export async function buildAnalysis(options: AnalysisOptions): Promise<AnalysisR
   });
 
   const warnings: string[] = [];
-  let cdsRows: AnalysisResponse["cds"]["rows"] = [];
-  try {
-    const [franceCds, germanyCds] = await Promise.all([
-      downloadBoursoramaCds("France", startDate, options.endDate),
-      downloadBoursoramaCds("Germany", startDate, options.endDate),
-    ]);
-    const franceMap = observationMap(franceCds);
-    const germanyMap = observationMap(germanyCds);
-    cdsRows = rows
-      .map((row) => {
-        const france = franceMap.get(row.date);
-        const germany = germanyMap.get(row.date);
-        if (france === undefined || germany === undefined) return null;
-        const francePd =
-          (1 - Math.exp(-Math.max(france / 10_000, 0) * 5 / lgd)) * 100;
-        const germanyPd =
-          (1 - Math.exp(-Math.max(germany / 10_000, 0) * 5 / lgd)) * 100;
-        return {
-          date: row.date,
-          cdsFrance5yBps: round(france),
-          cdsGermany5yBps: round(germany),
-          cdsFranceMinusGermany5yBps: round(france - germany),
-          cdsFrance5yPdPct: round(francePd),
-          cdsGermany5yPdPct: round(germanyPd),
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row !== null);
-  } catch (error) {
-    warnings.push(
-      `CDS data is unavailable for this request: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  let electionRows: AnalysisResponse["election"]["rows"] = [];
-  try {
-    electionRows = await downloadFrenchElectionProbabilities(startDate, options.endDate);
-    if (electionRows.length === 0) {
-      warnings.push("French election probability data returned no observations for the selected window.");
-    }
-  } catch (error) {
-    warnings.push(
-      `French election probability data is unavailable for this request: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  const [cdsRows, electionRows] = await Promise.all([
+    (async (): Promise<AnalysisResponse["cds"]["rows"]> => {
+      try {
+        const [franceCds, germanyCds] = await Promise.all([
+          downloadBoursoramaCds("France", startDate, options.endDate),
+          downloadBoursoramaCds("Germany", startDate, options.endDate),
+        ]);
+        const franceMap = observationMap(franceCds);
+        const germanyMap = observationMap(germanyCds);
+        return rows
+          .map((row) => {
+            const france = franceMap.get(row.date);
+            const germany = germanyMap.get(row.date);
+            if (france === undefined || germany === undefined) return null;
+            const francePd =
+              (1 - Math.exp(-Math.max(france / 10_000, 0) * 5 / lgd)) * 100;
+            const germanyPd =
+              (1 - Math.exp(-Math.max(germany / 10_000, 0) * 5 / lgd)) * 100;
+            return {
+              date: row.date,
+              cdsFrance5yBps: round(france),
+              cdsGermany5yBps: round(germany),
+              cdsFranceMinusGermany5yBps: round(france - germany),
+              cdsFrance5yPdPct: round(francePd),
+              cdsGermany5yPdPct: round(germanyPd),
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null);
+      } catch (error) {
+        warnings.push(
+          `CDS data is unavailable for this request: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return [];
+      }
+    })(),
+    (async (): Promise<AnalysisResponse["election"]["rows"]> => {
+      try {
+        const electionRows = await downloadFrenchElectionProbabilities(startDate, options.endDate);
+        if (electionRows.length === 0) {
+          warnings.push("French election probability data returned no observations for the selected window.");
+        }
+        return electionRows;
+      } catch (error) {
+        warnings.push(
+          `French election probability data is unavailable for this request: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return [];
+      }
+    })(),
+  ]);
 
   return {
     meta: {
