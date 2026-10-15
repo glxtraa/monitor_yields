@@ -25,6 +25,10 @@ function formatValue(value: number, decimals: number, unit: string) {
   })} ${unit}`;
 }
 
+function numeric(value: string | number | null | undefined) {
+  return value === null || value === undefined || value === "" ? Number.NaN : Number(value);
+}
+
 export default function LineChart({
   title,
   description,
@@ -42,7 +46,7 @@ export default function LineChart({
   const plotHeight = height - padding.top - padding.bottom;
   const values = series.flatMap((item) =>
     rows
-      .map((row) => Number(row[item.key]))
+      .map((row) => numeric(row[item.key]))
       .filter((value) => Number.isFinite(value)),
   );
   if (values.length === 0) return null;
@@ -65,7 +69,7 @@ export default function LineChart({
     let started = false;
     return rows
       .map((row, index) => {
-        const value = Number(row[key]);
+        const value = numeric(row[key]);
         if (!Number.isFinite(value)) return "";
         const command = started ? "L" : "M";
         started = true;
@@ -145,7 +149,7 @@ export default function LineChart({
               className="hover-line"
             />
             {series.map((item) => {
-              const value = Number(rows[activeIndex]?.[item.key]);
+              const value = numeric(rows[activeIndex]?.[item.key]);
               return Number.isFinite(value) ? (
                 <circle
                   key={`active-${item.key}`}
@@ -169,7 +173,7 @@ export default function LineChart({
                 {dates[activeIndex]}
               </text>
               {series.map((item, index) => {
-                const value = Number(rows[activeIndex]?.[item.key]);
+                const value = numeric(rows[activeIndex]?.[item.key]);
                 return (
                   <text
                     key={`tooltip-${item.key}`}
@@ -205,7 +209,7 @@ export default function LineChart({
         {series.map((item) => {
           const latest = [...rows]
             .reverse()
-            .map((row) => Number(row[item.key]))
+            .map((row) => numeric(row[item.key]))
             .find((value) => Number.isFinite(value));
           return (
             <span className="legend-item" key={item.key}>

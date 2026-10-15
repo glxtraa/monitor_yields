@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import LineChart from "@/components/LineChart";
 
 type Entity = {
   name: string;
@@ -35,7 +36,8 @@ type DtccTransaction = {
   spread: string; spreadCurrency: string; spreadNotation: string; notional: string; currency: string;
   underlying: string; disseminationId: string; effectiveDate: string; expirationDate: string; maturityDate: string; cleared: string;
 };
-type DtccResponse = { reportDate: string; source: string; fetchedAt: string; transactionCount: number; transactions: DtccTransaction[]; error?: string };
+type DtccObservation = { ticker: string; entity: string; date: string; spread: number; spreadCurrency: string; spreadNotation: string };
+type DtccResponse = { reportDate: string; reportDates: string[]; source: string; fetchedAt: string; transactionCount: number; transactions: DtccTransaction[]; observations: DtccObservation[]; historyDays: number; error?: string };
 
 function number(value: number | null, digits = 1) {
   if (value === null || !Number.isFinite(value)) return "—";
@@ -51,6 +53,7 @@ export default function AiCdsMonitor() {
   const [dtcc, setDtcc] = useState<DtccResponse | null>(null);
   const [dtccLoading, setDtccLoading] = useState(true);
   const [dtccError, setDtccError] = useState<string | null>(null);
+  const [selectedTicker, setSelectedTicker] = useState("CRWV");
   const loadDtcc = async () => {
     setDtccLoading(true);
     setDtccError(null);
@@ -64,6 +67,22 @@ export default function AiCdsMonitor() {
     } finally { setDtccLoading(false); }
   };
   useEffect(() => { void loadDtcc(); }, []);
+  const history = useMemo(() => {
+    if (!dtcc) return { dates: [] as string[], rows: [] as Array<{ date: string; spread: number | null; trades: number }>, observations: [] as DtccObservation[], notation: "" };
+    const selected = dtcc.observations.filter((item) => item.ticker === selectedTicker);
+    const notationCounts = new Map<string, number>();
+    selected.forEach((item) => notationCounts.set(item.spreadNotation || "Reported units", (notationCounts.get(item.spreadNotation || "Reported units") ?? 0) + 1));
+    const notation = [...notationCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+    const observations = selected.filter((item) => (item.spreadNotation || "Reported units") === notation);
+    const dates = dtcc.reportDates;
+    const rows = dates.map((date) => {
+      const values = observations.filter((item) => item.date === date).map((item) => item.spread).sort((a, b) => a - b);
+      const middle = Math.floor(values.length / 2);
+      const median = values.length === 0 ? null : values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+      return { date, spread: median, trades: values.length };
+    });
+    return { dates, rows, observations, notation };
+  }, [dtcc, selectedTicker]);
 
   return (
     <main className="page-shell">
@@ -80,6 +99,36 @@ export default function AiCdsMonitor() {
         <div className="status-badge">DTCC Public Price Dissemination</div>
       </header>
 
+      <section>
+        <div className="section-heading">
+          <p className="eyebrow">DTCC transaction prices · past {dtcc?.historyDays ?? 30} days</p>
+          <h2>CDS spread history from disclosed trades</h2>
+          <p className="section-note">Each point is the daily median of individual DTCC-reported spreads for the selected reference entity. This plots reportable transaction levels, not a continuous dealer mid-price. The table shows the number of trades behind each daily point.</p>
+        </div>
+        <div className="control-panel">
+          <label>Reference entity <select value={selectedTicker} onChange={(event) => setSelectedTicker(event.target.value)}>
+            {entities.map((entity) => <option key={entity.ticker} value={entity.ticker}>{entity.name}</option>)}
+          </select></label>
+          <span>{history.observations.length} disclosed trades · {history.notation || "waiting for DTCC data"}</span>
+        </div>
+        {dtccLoading && <p className="section-note">Loading recent daily DTCC reports…</p>}
+        {!dtccLoading && history.observations.length === 0 && <p className="section-note">No matching transactions with a reported spread were found for this name in the selected history window.</p>}
+        {history.observations.length > 0 && <>
+          <div className="chart-grid"><LineChart
+            title={`${[...history.rows].reverse().find((row) => row.spread !== null)?.spread?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? "—"} ${history.notation} · latest daily median`}
+            description={`${history.rows.length} report dates with a spread observation. Gaps indicate days without a matching public trade.`}
+            dates={history.dates}
+            rows={history.rows}
+            unit={history.notation}
+            decimals={2}
+            series={[{ key: "spread", label: "Daily median", color: "#155eef" }]}
+          /></div>
+          <div className="table-wrap"><table>
+            <thead><tr><th>Report date (UTC)</th><th>Median reported spread</th><th>Individual trades</th></tr></thead>
+            <tbody>{history.rows.map((row) => <tr key={row.date}><td>{row.date}</td><td>{row.spread === null ? "—" : `${number(row.spread, 2)} ${history.notation}`}</td><td>{row.trades}</td></tr>)}</tbody>
+          </table></div>
+        </>}
+      </section>
 
       <section>
         <div className="section-heading">

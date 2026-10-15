@@ -2,6 +2,7 @@ import { inflateRawSync } from "node:zlib";
 
 export const runtime = "nodejs";
 export const revalidate = 3600;
+const HISTORY_DAYS = 30;
 
 type CsvRow = Record<string, string>;
 
@@ -76,27 +77,7 @@ function dateKey(date: Date) {
   return `${date.getUTCFullYear()}_${String(date.getUTCMonth() + 1).padStart(2, "0")}_${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
-export async function GET() {
-  const today = new Date();
-  let archive: Buffer | null = null;
-  let reportDate = "";
-  let lastStatus = 0;
-  for (let offset = 0; offset < 8; offset += 1) {
-    const date = new Date(today);
-    date.setUTCDate(today.getUTCDate() - offset);
-    reportDate = dateKey(date);
-    const url = `https://pddata.dtcc.com/ppd/api/report/cumulative/sec/SEC_CUMULATIVE_CREDITS_${reportDate}.zip`;
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
-      lastStatus = response.status;
-      if (response.ok) { archive = Buffer.from(await response.arrayBuffer()); break; }
-    } catch { /* Try the prior UTC report date. */ }
-  }
-  if (!archive) {
-    return Response.json({ error: `No DTCC SEC credit archive found in the last seven days (last HTTP status ${lastStatus || "unavailable"}).` }, { status: 502 });
-  }
-
-  try {
+function decodeArchive(archive: Buffer) {
     const [headers = [], ...records] = parseZipCsv(archive);
     const normalizedHeaders = headers.map((header) => key(header.replace(/^\uFEFF/, "")));
     const decoded = records.map((values) => Object.fromEntries(normalizedHeaders.map((header, i) => [header, values[i] ?? ""])) as CsvRow);
@@ -126,7 +107,39 @@ export async function GET() {
       }];
     });
     transactions.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-    return Response.json({ reportDate: reportDate.replaceAll("_", "-"), source: "DTCC Public Price Dissemination · SEC Cumulative Credits", fetchedAt: new Date().toISOString(), transactionCount: transactions.length, transactions }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
+    return transactions;
+}
+
+export async function GET() {
+  const today = new Date();
+  const dates = Array.from({ length: HISTORY_DAYS }, (_, offset) => {
+    const date = new Date(today);
+    date.setUTCDate(today.getUTCDate() - offset);
+    return date;
+  }).filter((date) => date.getUTCDay() !== 0 && date.getUTCDay() !== 6);
+
+  try {
+    const reports = await Promise.all(dates.map(async (date) => {
+      const compactDate = dateKey(date);
+      const url = `https://pddata.dtcc.com/ppd/api/report/cumulative/sec/SEC_CUMULATIVE_CREDITS_${compactDate}.zip`;
+      try {
+        const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+        if (!response.ok) return null;
+        const transactions = decodeArchive(Buffer.from(await response.arrayBuffer()));
+        return { reportDate: compactDate.replaceAll("_", "-"), transactions };
+      } catch { return null; }
+    }));
+    const availableReports = reports.filter((report): report is NonNullable<typeof report> => report !== null).sort((a, b) => b.reportDate.localeCompare(a.reportDate));
+    if (!availableReports.length) {
+      return Response.json({ error: "No DTCC SEC credit archives were available in the past 30 calendar days." }, { status: 502 });
+    }
+    const latestReport = availableReports[0];
+    const observations = availableReports.flatMap(({ reportDate, transactions }) => transactions.flatMap((trade) => {
+      const spread = Number(trade.spread.replace(/,/g, ""));
+      if (!Number.isFinite(spread) || spread <= 0) return [];
+      return [{ ticker: trade.ticker, entity: trade.entity, date: reportDate, spread, spreadCurrency: trade.spreadCurrency, spreadNotation: trade.spreadNotation }];
+    }));
+    return Response.json({ reportDate: latestReport.reportDate, reportDates: availableReports.map((report) => report.reportDate), source: "DTCC Public Price Dissemination · SEC Cumulative Credits", fetchedAt: new Date().toISOString(), transactionCount: latestReport.transactions.length, transactions: latestReport.transactions, observations, historyDays: HISTORY_DAYS }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not parse DTCC credit report." }, { status: 500 });
   }
