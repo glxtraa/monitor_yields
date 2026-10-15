@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "France–Germany Yield Monitor",
+  title: "Credit Risk Monitors",
   description:
-    "Interactive France–Germany sovereign yield spreads and model-implied default probabilities.",
+    "France–Germany sovereign yields and AI data center bond prices, CDS spreads, and model-implied default probabilities.",
 };
 
 export default function RootLayout({
