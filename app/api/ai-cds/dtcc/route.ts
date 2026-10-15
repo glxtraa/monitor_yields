@@ -119,8 +119,13 @@ export async function GET() {
         currency: pick(row, "Notional currency-Leg 1"),
         underlying: underlierName,
         disseminationId: pick(row, "Dissemination Identifier"),
+        effectiveDate: pick(row, "Effective Date"),
+        expirationDate: pick(row, "Expiration Date"),
+        maturityDate: pick(row, "Maturity date of the underlier"),
+        cleared: pick(row, "Cleared"),
       }];
     });
+    transactions.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     return Response.json({ reportDate: reportDate.replaceAll("_", "-"), source: "DTCC Public Price Dissemination · SEC Cumulative Credits", fetchedAt: new Date().toISOString(), transactionCount: transactions.length, transactions }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not parse DTCC credit report." }, { status: 500 });
