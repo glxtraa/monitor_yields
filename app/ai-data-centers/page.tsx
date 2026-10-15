@@ -61,6 +61,7 @@ export default function AiDataCenterMonitor() {
           <p className="lede">Track reported bond prices for AI data center projects alongside five-year CDS quotes and a transparent, recovery-adjusted default-probability estimate.</p>
           <nav className="reference-links" aria-label="Monitor navigation">
             <a href="/">France–Germany Yield Monitor ↗</a>
+            <a href="/ai-cds">AI CDS Monitor ↗</a>
             <a href="https://www.ft.com/content/8171ef4a-b291-4375-bc85-87bee0f8bf7b" target="_blank" rel="noreferrer">FT Alphaville: CoreWeave bonds ↗</a>
           </nav>
         </div>

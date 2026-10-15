@@ -79,6 +79,7 @@ export default function Home() {
           </p>
           <p className="reference-links">
             <a href="/ai-data-centers">AI Data Center Bond Monitor ↗</a>
+            <a href="/ai-cds">AI CDS Monitor ↗</a>
             <a href={NOTEBOOK_URL} target="_blank" rel="noreferrer">Open the underlying notebook and math ↗</a>
             <a href={HANDOFF_URL} target="_blank" rel="noreferrer">Read the research handoff ↗</a>
           </p>
