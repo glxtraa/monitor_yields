@@ -203,11 +203,14 @@ export default function LineChart({
       </svg>
       <div className="chart-legend">
         {series.map((item) => {
-          const latest = Number(rows.at(-1)?.[item.key]);
+          const latest = [...rows]
+            .reverse()
+            .map((row) => Number(row[item.key]))
+            .find((value) => Number.isFinite(value));
           return (
             <span className="legend-item" key={item.key}>
               <i style={{ backgroundColor: item.color }} />
-              {item.label}: {formatValue(latest, decimals, unit)}
+              {item.label}: {latest === undefined ? "—" : formatValue(latest, decimals, unit)}
             </span>
           );
         })}
