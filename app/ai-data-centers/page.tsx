@@ -46,10 +46,10 @@ export default function AiDataCenterMonitor() {
   const [cds, setCds] = useState(initialCds);
   const latest = useMemo(() => [...cds].sort((a, b) => cumulativePd(b.spread, recovery) - cumulativePd(a.spread, recovery)), [cds, recovery]);
   const historyDates = ["2026-08-07", "2026-10-02", "2026-10-15"];
-  const historyRows = [
+  const historyRows: Array<Record<string, string | number | null>> = [
     { date: historyDates[0], beignet: 97.8, sopaipilla: 104.7, coreweave2031: 92 },
     { date: historyDates[1], beignet: 92.1, sopaipilla: 99, coreweave2031: 87 },
-    { date: historyDates[2], coreweave2031: 82.8 },
+    { date: historyDates[2], beignet: null, sopaipilla: null, coreweave2031: 82.8 },
   ];
 
   return (
