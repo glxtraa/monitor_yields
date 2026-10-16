@@ -35,9 +35,10 @@ type DtccTransaction = {
   entity: string; ticker: string; timestamp: string; action: string; event: string; product: string;
   spread: string; spreadCurrency: string; spreadNotation: string; notional: string; currency: string;
   underlying: string; disseminationId: string; effectiveDate: string; expirationDate: string; maturityDate: string; cleared: string;
+  rawRecord: Record<string, string>;
 };
 type DtccObservation = { ticker: string; entity: string; date: string; spread: number; spreadCurrency: string; spreadNotation: string };
-type DtccResponse = { reportDate: string; reportDates: string[]; source: string; fetchedAt: string; transactionCount: number; transactions: DtccTransaction[]; observations: DtccObservation[]; historyDays: number; error?: string };
+type DtccResponse = { reportDate: string; reportDates: string[]; source: string; fetchedAt: string; transactionCount: number; transactions: DtccTransaction[]; rawHeaders: string[]; observations: DtccObservation[]; historyDays: number; error?: string };
 
 function number(value: number | null, digits = 1) {
   if (value === null || !Number.isFinite(value)) return "—";
@@ -47,6 +48,18 @@ function number(value: number | null, digits = 1) {
 function fiveYearPd(spreadBps: number, recoveryPct = 40) {
   const hazard = (spreadBps / 10_000) / (1 - recoveryPct / 100);
   return (1 - Math.exp(-hazard * 5)) * 100;
+}
+
+function downloadRawCsv(data: DtccResponse) {
+  const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const lines = [data.rawHeaders.map(escape).join(","), ...data.transactions.map((trade) => data.rawHeaders.map((header) => escape(trade.rawRecord[header] ?? "")).join(","))];
+  const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `dtcc-sec-credits-watchlist-${data.reportDate}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function AiCdsMonitor() {
@@ -138,7 +151,10 @@ export default function AiCdsMonitor() {
         </div>
         <div className="control-panel">
           <div><strong>{dtccLoading ? "Loading DTCC report…" : dtcc ? `${dtcc.reportDate} UTC · ${dtcc.transactionCount} matching rows` : "DTCC report unavailable"}</strong><br /><small>{dtcc?.source ?? "Source: DTCC Public Price Dissemination"}</small></div>
-          <button type="button" onClick={() => void loadDtcc()} disabled={dtccLoading}>{dtccLoading ? "Loading…" : "Refresh DTCC data"}</button>
+          <div className="button-row">
+            {dtcc && <button type="button" onClick={() => downloadRawCsv(dtcc)}>Download raw matched CSV</button>}
+            <button type="button" onClick={() => void loadDtcc()} disabled={dtccLoading}>{dtccLoading ? "Loading…" : "Refresh DTCC data"}</button>
+          </div>
         </div>
         {dtccError && <div className="warning-box">{dtccError} The DTCC dashboard remains available from the source link below.</div>}
         {dtcc && dtcc.transactions.length === 0 && <p className="section-note">No matching watchlist trades were found in this report date. This can mean no publicly disseminated reportable trade for these entities on that date; it does not mean no CDS contracts are outstanding.</p>}
@@ -153,6 +169,16 @@ export default function AiCdsMonitor() {
             <td>{trade.disseminationId || "—"}</td>
           </tr>)}</tbody>
         </table></div>}
+        {dtcc && dtcc.transactions.length > 0 && <div className="raw-records">
+          <h3>Raw DTCC records · {dtcc.reportDate} UTC</h3>
+          <p className="section-note">Original field names and values from the DTCC SEC cumulative Credits CSV, filtered to the AI CDS watchlist. Expand a record to inspect every field.</p>
+          {dtcc.transactions.map((trade, index) => <details className="raw-record" key={`${trade.disseminationId}-raw-${index}`}>
+            <summary>{trade.entity} · {trade.timestamp || dtcc.reportDate} · {trade.disseminationId || "DTCC record"}</summary>
+            <div className="table-wrap"><table><thead><tr><th>DTCC field</th><th>Raw value</th></tr></thead>
+              <tbody>{dtcc.rawHeaders.map((header) => <tr key={header}><th>{header}</th><td>{trade.rawRecord[header] || "—"}</td></tr>)}</tbody>
+            </table></div>
+          </details>)}
+        </div>}
       </section>
 
       <section>

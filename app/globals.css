@@ -41,6 +41,8 @@ h3 { margin: 0; font-size: 1rem; }
 .control-panel { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: 0 8px 30px rgba(16, 24, 40, 0.04); }
 .control-panel label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 0.78rem; font-weight: 750; }
 .control-panel input[type="number"] { width: 120px; padding: 10px 11px; border: 1px solid #cfd5df; border-radius: 9px; color: var(--ink); background: #fff; }
+.control-panel select { min-width: 220px; padding: 10px 11px; border: 1px solid #cfd5df; border-radius: 9px; color: var(--ink); background: #fff; }
+.button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; }
 .input-suffix { margin-top: -30px; margin-left: 95px; align-self: start; color: var(--muted); font-size: 0.9rem; pointer-events: none; }
 .checkbox-label { align-self: center; flex-direction: row !important; align-items: center; gap: 8px !important; max-width: 245px; line-height: 1.35; }
 .checkbox-label input { width: 16px; height: 16px; accent-color: var(--accent); }
@@ -85,6 +87,14 @@ section { margin-top: 48px; }
 .legend-item i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.raw-records { margin-top: 24px; }
+.raw-records h3 { margin-bottom: 8px; }
+.raw-record { margin-top: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.raw-record summary { cursor: pointer; color: var(--ink); font-weight: 750; }
+.raw-record .table-wrap { margin-top: 14px; }
+.raw-record table { min-width: 720px; }
+.raw-record th, .raw-record td { text-align: left; }
+.raw-record th:first-child { width: 34%; }
 table { width: 100%; border-collapse: collapse; min-width: 600px; }
 th, td { padding: 13px 16px; border-bottom: 1px solid #edf0f4; text-align: right; font-size: 0.88rem; }
 th:first-child, td:first-child { text-align: left; }
@@ -110,6 +120,8 @@ tr:last-child td { border-bottom: 0; }
   .hero { flex-direction: column; }
   .control-panel { align-items: stretch; }
   .control-panel label, .control-panel input[type="number"], button { width: 100%; }
+  .control-panel select { width: 100%; }
+  .button-row { width: 100%; margin-left: 0; }
   .input-suffix { margin-left: calc(100% - 24px); }
   .checkbox-label { max-width: none; }
   .meta-strip, .snapshot-grid { grid-template-columns: 1fr; }

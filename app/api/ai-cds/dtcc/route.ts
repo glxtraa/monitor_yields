@@ -79,9 +79,13 @@ function dateKey(date: Date) {
 
 function decodeArchive(archive: Buffer) {
     const [headers = [], ...records] = parseZipCsv(archive);
-    const normalizedHeaders = headers.map((header) => key(header.replace(/^\uFEFF/, "")));
-    const decoded = records.map((values) => Object.fromEntries(normalizedHeaders.map((header, i) => [header, values[i] ?? ""])) as CsvRow);
-    const transactions = decoded.flatMap((row) => {
+    const cleanHeaders = headers.map((header) => header.replace(/^\uFEFF/, ""));
+    const normalizedHeaders = cleanHeaders.map(key);
+    const decoded = records.map((values) => ({
+      row: Object.fromEntries(normalizedHeaders.map((header, i) => [header, values[i] ?? ""])) as CsvRow,
+      rawRecord: Object.fromEntries(cleanHeaders.map((header, i) => [header, values[i] ?? ""])) as Record<string, string>,
+    }));
+    const transactions = decoded.flatMap(({ row, rawRecord }) => {
       const underlierName = pick(row, "Underlying Asset Name", "New UPI Underlier Name", "Underlier Name-Leg 1");
       const searchable = [underlierName, pick(row, "New UPI FISN"), pick(row, "Product name"), pick(row, "Underlier ID-Leg 1")].join(" ").toUpperCase();
       const entity = watchlist.find((item) => item.aliases.some((alias) => searchable.includes(alias)));
@@ -104,10 +108,11 @@ function decodeArchive(archive: Buffer) {
         expirationDate: pick(row, "Expiration Date"),
         maturityDate: pick(row, "Maturity date of the underlier"),
         cleared: pick(row, "Cleared"),
+        rawRecord,
       }];
     });
     transactions.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-    return transactions;
+    return { headers: cleanHeaders, transactions };
 }
 
 export async function GET() {
@@ -125,8 +130,8 @@ export async function GET() {
       try {
         const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
         if (!response.ok) return null;
-        const transactions = decodeArchive(Buffer.from(await response.arrayBuffer()));
-        return { reportDate: compactDate.replaceAll("_", "-"), transactions };
+        const decoded = decodeArchive(Buffer.from(await response.arrayBuffer()));
+        return { reportDate: compactDate.replaceAll("_", "-"), ...decoded };
       } catch { return null; }
     }));
     const availableReports = reports.filter((report): report is NonNullable<typeof report> => report !== null).sort((a, b) => b.reportDate.localeCompare(a.reportDate));
@@ -139,7 +144,7 @@ export async function GET() {
       if (!Number.isFinite(spread) || spread <= 0) return [];
       return [{ ticker: trade.ticker, entity: trade.entity, date: reportDate, spread, spreadCurrency: trade.spreadCurrency, spreadNotation: trade.spreadNotation }];
     }));
-    return Response.json({ reportDate: latestReport.reportDate, reportDates: availableReports.map((report) => report.reportDate), source: "DTCC Public Price Dissemination · SEC Cumulative Credits", fetchedAt: new Date().toISOString(), transactionCount: latestReport.transactions.length, transactions: latestReport.transactions, observations, historyDays: HISTORY_DAYS }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
+    return Response.json({ reportDate: latestReport.reportDate, reportDates: availableReports.map((report) => report.reportDate), source: "DTCC Public Price Dissemination · SEC Cumulative Credits", fetchedAt: new Date().toISOString(), transactionCount: latestReport.transactions.length, transactions: latestReport.transactions, rawHeaders: latestReport.headers, observations, historyDays: HISTORY_DAYS }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not parse DTCC credit report." }, { status: 500 });
   }
