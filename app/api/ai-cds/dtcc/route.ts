@@ -2,7 +2,7 @@ import { inflateRawSync } from "node:zlib";
 
 export const runtime = "nodejs";
 export const revalidate = 3600;
-const HISTORY_DAYS = 30;
+const HISTORY_DAYS = 90;
 
 type CsvRow = Record<string, string>;
 

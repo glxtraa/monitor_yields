@@ -66,6 +66,7 @@ export default function AiCdsMonitor() {
   const [dtcc, setDtcc] = useState<DtccResponse | null>(null);
   const [dtccLoading, setDtccLoading] = useState(true);
   const [dtccError, setDtccError] = useState<string | null>(null);
+  const [selectedVolumeTicker, setSelectedVolumeTicker] = useState("all");
   const loadDtcc = async () => {
     setDtccLoading(true);
     setDtccError(null);
@@ -80,8 +81,9 @@ export default function AiCdsMonitor() {
   };
   useEffect(() => { void loadDtcc(); }, []);
   const volume = useMemo(() => {
-    const series = entities.map((entity, index) => ({ key: entity.ticker, label: entity.ticker, color: ["#155eef", "#0e9384", "#7c3aed", "#f79009", "#d92d20", "#6172f3", "#12b76a", "#dd2590", "#475467"][index] }));
-    const rows = (dtcc?.reportDates ?? []).map((date) => ({ date, values: Object.fromEntries(series.map((item) => [item.key, 0])) as Record<string, number>, counts: Object.fromEntries(series.map((item) => [item.key, 0])) as Record<string, number> }));
+    const allSeries = entities.map((entity, index) => ({ key: entity.ticker, label: entity.ticker, color: ["#155eef", "#0e9384", "#7c3aed", "#f79009", "#d92d20", "#6172f3", "#12b76a", "#dd2590", "#475467"][index] }));
+    const series = selectedVolumeTicker === "all" ? allSeries : allSeries.filter((item) => item.key === selectedVolumeTicker);
+    const rows = (dtcc?.reportDates ?? []).map((date) => ({ date, values: Object.fromEntries(allSeries.map((item) => [item.key, 0])) as Record<string, number>, counts: Object.fromEntries(allSeries.map((item) => [item.key, 0])) as Record<string, number> }));
     const rowByDate = new Map(rows.map((row) => [row.date, row]));
     dtcc?.volumeObservations.forEach((item) => {
       const row = rowByDate.get(item.date);
@@ -89,9 +91,9 @@ export default function AiCdsMonitor() {
       row.values[item.ticker] = (row.values[item.ticker] ?? 0) + item.notional / 1_000_000;
       row.counts[item.ticker] = (row.counts[item.ticker] ?? 0) + 1;
     });
-    const hasUsdNotional = rows.some((row) => Object.values(row.values).some((value) => value > 0));
+    const hasUsdNotional = rows.some((row) => series.some((item) => row.values[item.key] > 0));
     return { series, rows, hasUsdNotional };
-  }, [dtcc]);
+  }, [dtcc, selectedVolumeTicker]);
 
   return (
     <main className="page-shell">
@@ -110,11 +112,18 @@ export default function AiCdsMonitor() {
 
       <section>
         <div className="section-heading">
-          <p className="eyebrow">Disclosed trading activity · past {dtcc?.historyDays ?? 30} days</p>
+          <p className="eyebrow">Disclosed trading activity · past {dtcc?.historyDays ?? 90} days</p>
           <h2>AI-related CDS notional volume</h2>
           <p className="section-note">Daily USD notional from individual DTCC disclosures, stacked by reference entity. DTCC caps certain published single-name notionals at $5m, so this is disclosed volume and may understate actual traded notional.</p>
         </div>
-        {volume.hasUsdNotional ? <VolumeChart title="Daily disclosed CDS notional by name" dates={dtcc?.reportDates ?? []} rows={volume.rows} series={volume.series} /> : <p className="section-note">No USD notional observations for the monitored entities were available in the latest 30-day DTCC reports.</p>}
+        <div className="control-panel volume-controls">
+          <label>Show <select value={selectedVolumeTicker} onChange={(event) => setSelectedVolumeTicker(event.target.value)}>
+            <option value="all">All AI-related names</option>
+            {entities.map((entity) => <option key={entity.ticker} value={entity.ticker}>{entity.name}</option>)}
+          </select></label>
+          <span>{dtccLoading ? "Loading 90 days of DTCC reports…" : `${dtcc?.reportDates.length ?? 0} daily reports · hover the chart for detail`}</span>
+        </div>
+        {volume.hasUsdNotional ? <VolumeChart title="Daily disclosed CDS notional by name" dates={dtcc?.reportDates ?? []} rows={volume.rows} series={volume.series} /> : <p className="section-note">No USD notional observations for the monitored entities were available in the latest 90-day DTCC reports.</p>}
       </section>
 
       <section>
