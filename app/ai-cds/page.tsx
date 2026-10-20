@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import LineChart from "@/components/LineChart";
+import VolumeChart from "@/components/VolumeChart";
 
 type Entity = {
   name: string;
@@ -38,7 +39,8 @@ type DtccTransaction = {
   rawRecord: Record<string, string>;
 };
 type DtccObservation = { ticker: string; entity: string; date: string; spread: number; spreadCurrency: string; spreadNotation: string };
-type DtccResponse = { reportDate: string; reportDates: string[]; source: string; fetchedAt: string; transactionCount: number; transactions: DtccTransaction[]; rawHeaders: string[]; observations: DtccObservation[]; historyDays: number; error?: string };
+type DtccVolumeObservation = { ticker: string; entity: string; date: string; notional: number; currency: string };
+type DtccResponse = { reportDate: string; reportDates: string[]; source: string; fetchedAt: string; transactionCount: number; transactions: DtccTransaction[]; rawHeaders: string[]; observations: DtccObservation[]; volumeObservations: DtccVolumeObservation[]; historyDays: number; error?: string };
 
 function number(value: number | null, digits = 1) {
   if (value === null || !Number.isFinite(value)) return "—";
@@ -96,6 +98,19 @@ export default function AiCdsMonitor() {
     });
     return { dates, rows, observations, notation };
   }, [dtcc, selectedTicker]);
+  const volume = useMemo(() => {
+    const series = entities.map((entity, index) => ({ key: entity.ticker, label: entity.ticker, color: ["#155eef", "#0e9384", "#7c3aed", "#f79009", "#d92d20", "#6172f3", "#12b76a", "#dd2590", "#475467"][index] }));
+    const rows = (dtcc?.reportDates ?? []).map((date) => ({ date, values: Object.fromEntries(series.map((item) => [item.key, 0])) as Record<string, number>, counts: Object.fromEntries(series.map((item) => [item.key, 0])) as Record<string, number> }));
+    const rowByDate = new Map(rows.map((row) => [row.date, row]));
+    dtcc?.volumeObservations.forEach((item) => {
+      const row = rowByDate.get(item.date);
+      if (!row || item.currency.toUpperCase() !== "USD" || !Number.isFinite(item.notional) || item.notional <= 0) return;
+      row.values[item.ticker] = (row.values[item.ticker] ?? 0) + item.notional / 1_000_000;
+      row.counts[item.ticker] = (row.counts[item.ticker] ?? 0) + 1;
+    });
+    const hasUsdNotional = rows.some((row) => Object.values(row.values).some((value) => value > 0));
+    return { series, rows, hasUsdNotional };
+  }, [dtcc]);
 
   return (
     <main className="page-shell">
@@ -141,6 +156,15 @@ export default function AiCdsMonitor() {
             <tbody>{history.rows.map((row) => <tr key={row.date}><td>{row.date}</td><td>{row.spread === null ? "—" : `${number(row.spread, 2)} ${history.notation}`}</td><td>{row.trades}</td></tr>)}</tbody>
           </table></div>
         </>}
+      </section>
+
+      <section>
+        <div className="section-heading">
+          <p className="eyebrow">Disclosed trading activity · past {dtcc?.historyDays ?? 30} days</p>
+          <h2>AI-related CDS notional volume</h2>
+          <p className="section-note">Daily USD notional from individual DTCC disclosures, stacked by reference entity. DTCC caps certain published single-name notionals at $5m, so this is disclosed volume and may understate actual traded notional.</p>
+        </div>
+        {volume.hasUsdNotional ? <VolumeChart title="Daily disclosed CDS notional by name" dates={dtcc?.reportDates ?? []} rows={volume.rows} series={volume.series} /> : <p className="section-note">No USD notional observations for the monitored entities were available in the latest 30-day DTCC reports.</p>}
       </section>
 
       <section>

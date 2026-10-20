@@ -144,7 +144,14 @@ export async function GET() {
       if (!Number.isFinite(spread) || spread <= 0) return [];
       return [{ ticker: trade.ticker, entity: trade.entity, date: reportDate, spread, spreadCurrency: trade.spreadCurrency, spreadNotation: trade.spreadNotation }];
     }));
-    return Response.json({ reportDate: latestReport.reportDate, reportDates: availableReports.map((report) => report.reportDate), source: "DTCC Public Price Dissemination · SEC Cumulative Credits", fetchedAt: new Date().toISOString(), transactionCount: latestReport.transactions.length, transactions: latestReport.transactions, rawHeaders: latestReport.headers, observations, historyDays: HISTORY_DAYS }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
+    const volumeObservations = availableReports.flatMap(({ reportDate, transactions }) => transactions.map((trade) => ({
+      ticker: trade.ticker,
+      entity: trade.entity,
+      date: reportDate,
+      notional: Number(trade.notional.replace(/,/g, "")),
+      currency: trade.currency,
+    })));
+    return Response.json({ reportDate: latestReport.reportDate, reportDates: [...availableReports].reverse().map((report) => report.reportDate), source: "DTCC Public Price Dissemination · SEC Cumulative Credits", fetchedAt: new Date().toISOString(), transactionCount: latestReport.transactions.length, transactions: latestReport.transactions, rawHeaders: latestReport.headers, observations, volumeObservations, historyDays: HISTORY_DAYS }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not parse DTCC credit report." }, { status: 500 });
   }
